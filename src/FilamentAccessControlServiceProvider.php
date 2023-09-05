@@ -1,154 +1,123 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Dearvn\FilamentAccessControl;
 
-use Dearvn\FilamentAccessControl\Commands\FilamentAccessControlCommand;
-use Dearvn\FilamentAccessControl\Testing\TestsFilamentAccessControl;
-use Filament\Support\Assets\AlpineComponent;
-use Filament\Support\Assets\Asset;
-use Filament\Support\Assets\Css;
-use Filament\Support\Assets\Js;
-use Filament\Support\Facades\FilamentAsset;
-use Filament\Support\Facades\FilamentIcon;
-use Illuminate\Filesystem\Filesystem;
-use Livewire\Features\SupportTesting\Testable;
-use Spatie\LaravelPackageTools\Commands\InstallCommand;
+use Dearvn\FilamentAccessControl\Commands\CreateFilamentUser;
+use Dearvn\FilamentAccessControl\Commands\Install;
+use Dearvn\FilamentAccessControl\Http\Livewire\AccountExpired;
+use Dearvn\FilamentAccessControl\Http\Livewire\Login;
+use Dearvn\FilamentAccessControl\Http\Livewire\TwoFactorChallenge;
+use Dearvn\FilamentAccessControl\Models\FilamentUser;
+use Dearvn\FilamentAccessControl\Policies\FilamentUserPolicy;
+use Dearvn\FilamentAccessControl\Policies\PermissionPolicy;
+use Dearvn\FilamentAccessControl\Policies\RolePolicy;
+use Dearvn\FilamentAccessControl\Resources\FilamentUserResource;
+use Dearvn\FilamentAccessControl\Resources\PermissionResource;
+use Dearvn\FilamentAccessControl\Resources\RoleResource;
+use Illuminate\Support\Facades\Gate;
+use Livewire\Livewire;
+use Livewire\Mechanisms\ComponentRegistry;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class FilamentAccessControlServiceProvider extends PackageServiceProvider
 {
-    public static string $name = 'filament-access-control';
-
-    public static string $viewNamespace = 'filament-access-control';
-
     public function configurePackage(Package $package): void
     {
-        /*
-         * This class is a Package Service Provider
-         *
-         * More info: https://github.com/spatie/laravel-package-tools
-         */
-        $package->name(static::$name)
-            ->hasCommands($this->getCommands())
-            ->hasInstallCommand(function (InstallCommand $command) {
-                $command
-                    ->publishConfigFile()
-                    ->publishMigrations()
-                    ->askToRunMigrations()
-                    ->askToStarRepoOnGitHub('dearvn/filament-access-control');
-            });
-
-        $configFileName = $package->shortName();
-
-        if (file_exists($package->basePath("/../config/{$configFileName}.php"))) {
-            $package->hasConfigFile();
-        }
-
-        if (file_exists($package->basePath('/../database/migrations'))) {
-            $package->hasMigrations($this->getMigrations());
-        }
-
-        if (file_exists($package->basePath('/../resources/lang'))) {
-            $package->hasTranslations();
-        }
-
-        if (file_exists($package->basePath('/../resources/views'))) {
-            $package->hasViews(static::$viewNamespace);
-        }
+        $package
+            ->name('filament-access-control')
+            ->hasConfigFile()
+            ->hasTranslations()
+            ->hasRoutes('web')
+            ->hasMigration('create_filament_users_table')
+            ->hasMigration('create_filament_password_resets_table')
+            ->hasViews('filament-access-control')
+            ->hasCommand(CreateFilamentUser::class)
+            ->hasCommand(Install::class);
     }
 
     public function packageRegistered(): void
     {
+        parent::packageRegistered();
+        $this->mergeGuardsConfig();
+        $this->mergeProvidersConfig();
+        $this->mergePasswordsConfig();
     }
 
     public function packageBooted(): void
     {
-        // Asset Registration
-        FilamentAsset::register(
-            $this->getAssets(),
-            $this->getAssetPackageName()
-        );
+        parent::packageBooted();
 
-        FilamentAsset::registerScriptData(
-            $this->getScriptData(),
-            $this->getAssetPackageName()
-        );
-
-        // Icon Registration
-        FilamentIcon::register($this->getIcons());
-
-        // Handle Stubs
-        if (app()->runningInConsole()) {
-            foreach (app(Filesystem::class)->files(__DIR__ . '/../stubs/') as $file) {
-                $this->publishes([
-                    $file->getRealPath() => base_path("stubs/filament-access-control/{$file->getFilename()}"),
-                ], 'filament-access-control-stubs');
-            }
-        }
-
-        // Testing
-        Testable::mixin(new TestsFilamentAccessControl());
+        $this->registerComponent(Login::class);
+        $this->registerComponent(AccountExpired::class);
+        $this->registerComponent(TwoFactorChallenge::class);
+        Gate::policy(config('filament-access-control.user_model'), FilamentUserPolicy::class);
+        Gate::policy(Role::class, RolePolicy::class);
+        Gate::policy(Permission::class, PermissionPolicy::class);
     }
 
-    protected function getAssetPackageName(): ?string
+    protected function getResources(): array
     {
-        return 'dearvn/filament-access-control';
+        return [FilamentUserResource::class, PermissionResource::class, RoleResource::class];
     }
 
     /**
-     * @return array<Asset>
+     * Merge auth guards configuration.
      */
-    protected function getAssets(): array
+    protected function mergeGuardsConfig(): void
     {
-        return [
-            // AlpineComponent::make('filament-access-control', __DIR__ . '/../resources/dist/components/filament-access-control.js'),
-            Css::make('filament-access-control-styles', __DIR__ . '/../resources/dist/filament-access-control.css'),
-            Js::make('filament-access-control-scripts', __DIR__ . '/../resources/dist/filament-access-control.js'),
-        ];
+        $this->mergeConfig([
+            'filament' => [
+                'driver' => 'session',
+                'provider' => 'filament_users',
+            ],
+        ], 'auth.guards');
     }
 
     /**
-     * @return array<class-string>
+     * Merge auth providers configuration.
      */
-    protected function getCommands(): array
+    protected function mergeProvidersConfig(): void
     {
-        return [
-            FilamentAccessControlCommand::class,
-        ];
+        $this->mergeConfig([
+            'filament_users' => [
+                'driver' => 'eloquent',
+                'model' => $this->app['config']->get('filament-access-control.user_model', FilamentUser::class),
+            ],
+        ], 'auth.providers');
     }
 
     /**
-     * @return array<string>
+     * Merge passwords configuration.
      */
-    protected function getIcons(): array
+    protected function mergePasswordsConfig(): void
     {
-        return [];
+        $this->mergeConfig([
+            'filament' => [
+                'provider' => 'filament_users',
+                'email' => 'auth.emails.password',
+                'table' => 'filament_password_resets',
+                'expire' => 60,
+            ],
+        ], 'auth.passwords');
     }
 
     /**
-     * @return array<string>
+     * Merge config from array.
      */
-    protected function getRoutes(): array
+    protected function mergeConfig(array $config, string $key): void
     {
-        return [];
+        $default = $this->app['config']->get($key, []);
+        $this->app['config']->set($key, array_merge($config, $default));
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    protected function getScriptData(): array
+    protected function registerComponent(string $component): void
     {
-        return [];
-    }
-
-    /**
-     * @return array<string>
-     */
-    protected function getMigrations(): array
-    {
-        return [
-            'create_filament-access-control_table',
-        ];
+        $name = app(ComponentRegistry::class)->getName($component);
+        Livewire::component($name, $component);
     }
 }

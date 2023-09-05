@@ -1,60 +1,206 @@
-# This is my package filament-access-control
+![filament-access-control](https://user-images.githubusercontent.com/15029301/155413160-9ba82064-3436-414f-a556-a0bff61528a0.png)
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/dearvn/filament-access-control.svg?style=flat-square)](https://packagist.org/packages/dearvn/filament-access-control)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/dearvn/filament-access-control/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/dearvn/filament-access-control/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/dearvn/filament-access-control/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/dearvn/filament-access-control/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/dearvn/filament-access-control.svg?style=flat-square)](https://packagist.org/packages/dearvn/filament-access-control)
+# Filament Access Control
 
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/chiiya/filament-access-control.svg?style=flat-square)](https://packagist.org/packages/chiiya/filament-access-control)
+[![GitHub Code Style Action Status](https://img.shields.io/github/workflow/status/chiiya/filament-access-control/lint?label=code%20style)](https://github.com/chiiya/filament-access-control/actions?query=workflow%3Alint+branch%3Amaster)
+[![Total Downloads](https://img.shields.io/packagist/dt/chiiya/filament-access-control.svg?style=flat-square)](https://packagist.org/packages/chiiya/filament-access-control)
 
+Opinionated setup for managing admin users, roles and permissions within [Laravel Filament](https://github.com/laravel-filament/filament)
 
-This is where your description should go. Limit it to a paragraph or two. Consider adding a small example.
+## Features
+- Separate database table for filament admin users (separate model, separate guard, separate password broker)
+- Uses [spatie/laravel-permission](https://github.com/spatie/laravel-permission) for roles and permissions
+- Fully localized
+- CRUD resources for admin users, roles and permissions
+- Admin users _may_ belong to **one** role
+- Admin users can have direct permissions or indirect permissions through their role
+- When creating admin users through the admin interface, no password is specified. Instead, the user receives an email prompting them to set their password
+- Optional account expiry for admin users. Expired accounts are no longer able to log in
+- Optional email based two-factor authentication.
 
 ## Installation
 
-You can install the package via composer:
+1. Install the package via composer:
+
+```
+COMPOSER_MEMORY_LIMIT=-1 /usr/local/opt/php@8.2/bin/php /usr/local/bin/composer install
+```
 
 ```bash
 composer require dearvn/filament-access-control
 ```
 
-You can publish and run the migrations with:
+2. Update your `config/filament.php` file to use the package's guard and `Login` page:
+
+```php
+'auth' => [
+    'guard' => env('FILAMENT_AUTH_GUARD', 'filament'),
+    'pages' => [
+        'login' => \Dearvn\FilamentAccessControl\Http\Livewire\Login::class,
+    ],
+],
+```
+
+3. Publish the migrations and config, then run the migrations. Make sure you also publish
+   and run the [spatie/laravel-permission](https://github.com/spatie/laravel-permission) migrations
+   if you haven't done so yet.
 
 ```bash
 php artisan vendor:publish --tag="filament-access-control-migrations"
+php artisan vendor:publish --tag="filament-access-control-config"
+php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
 php artisan migrate
 ```
 
-You can publish the config file with:
+4. To seed the necessary base data (role & permissions), run `php artisan filament-access-control:install`
+   or call the `Dearvn\FilamentAccessControl\Database\Seeders\FilamentAccessControlSeeder` seeder in your database seeder.
+
+5. Create an admin user using `php artisan filament-access-control:user`. If you create users programmatically
+   (e.g. in your database seeder), make sure to assign them the `super-admin` role if you want them to be able to
+   access the role and user management.
+
+Optionally, you can publish the translations with:
 
 ```bash
-php artisan vendor:publish --tag="filament-access-control-config"
+php artisan vendor:publish --tag="filament-access-control-translations"
 ```
 
-Optionally, you can publish the views using
+Optionally, you can publish the views with:
 
 ```bash
 php artisan vendor:publish --tag="filament-access-control-views"
 ```
 
-This is the contents of the published config file:
-
-```php
-return [
-];
-```
-
 ## Usage
 
+### Authorizing Resources, Pages & Actions
+
+#### Authorizing Resources
+To authorize access to resources, use policies as described in the
+[Filament documentation](https://filamentphp.com/docs/2.x/admin/resources#authorization).
+
 ```php
-$filamentAccessControl = new Dearvn\FilamentAccessControl();
-echo $filamentAccessControl->echoPhrase('Hello, Dearvn!');
+class ProductPolicy
+{
+    public function viewAny(FilamentUser $user): bool
+    {
+        return $user->can('products.view');
+    }
+    
+    // ...
+}
 ```
 
-## Testing
+#### Authorizing Pages
+This package comes with a simple trait that you can use to authorize access to custom
+pages based on a permission.
 
-```bash
-composer test
+```php
+use Dearvn\FilamentAccessControl\Traits\AuthorizesPageAccess;
+
+class MyPage extends Page
+{
+    use AuthorizesPageAccess;
+    
+    public static string $permission = 'my-page.view';
+    
+    public function mount(): void
+    {
+        static::authorizePageAccess();
+    }
+}
 ```
+
+#### Authorizing Actions
+One way to authorize actions is to use the `visible()` method:
+
+```php
+ButtonAction::make('exports')
+    ->visible(fn () => Filament::auth()->user()->can('exports.view'))
+```
+
+### Localizing Role & Permission Names
+Roles and permissions should have names that make them easy to use in code (e.g. `admin-users.update`).
+For the admin you may however wish to localize them or make them more readable. You can do so by simply
+adding a JSON translation entry for the given role or permission name (e.g. `lang/en.json`):
+
+```json
+{
+    "admin-users.update": "Admin Users → Edit"
+}
+```
+
+### Feature: Account Expiry
+With the optional account expiry feature, all accounts require an expiration date. When
+accounts are expired, they can no longer log in. To enable the account expiry feature,
+enable the feature flag in the config file:
+
+```php
+'features' => [
+    \Dearvn\FilamentAccessControl\Enumerators\Feature::ACCOUNT_EXPIRY,
+],
+```
+
+You will also need to add the `EnsureAccountIsNotExpired` middleware to your filament auth middleware config:
+
+```php
+use Dearvn\FilamentAccessControl\Http\Middleware\EnsureAccountIsNotExpired;
+
+'middleware' => [
+    'auth' => [
+        Authenticate::class,
+        EnsureAccountIsNotExpired::class,
+    ],
+]
+```
+
+### Feature: Two-Factor Authentication
+With the optional two-factor authentication feature, users must enter a verification code sent
+via email upon login. To enable the two-factor authentication feature, enable the feature
+flag in the config file:
+
+```php
+'features' => [
+    \Dearvn\FilamentAccessControl\Enumerators\Feature::TWO_FACTOR,
+],
+```
+
+### Custom User Model
+To use your own custom user model for the admin (instead of `Dearvn\FilamentAccessControl\Models\FilamentUser`),
+point the value of `user_model` in the `filament-access-control` config file to your own model.
+
+```php
+'user_model' => CustomFilamentUser::class,
+```
+
+Please make sure that your model either extends the `FilamentUser` base case or implements the
+`Dearvn\FilamentAccessControl\Contracts\AccessControlUser` interface.
+
+```php
+use Dearvn\FilamentAccessControl\Models\FilamentUser;
+use Dearvn\FilamentAccessControl\Contracts\AccessControlUser;
+use Filament\Models\Contracts\FilamentUser as FilamentUserInterface;
+use Filament\Models\Contracts\HasName;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+
+class CustomFilamentUser extends FilamentUser
+{
+    // ...
+}
+
+// Or alternatively
+class CustomFilamentUser extends Authenticatable implements AccessControlUser, FilamentUserInterface, HasName
+{
+    // ...
+}
+```
+
+## Screenshots
+![Screenshot of Admin Users - View](./art/admin_users_view.png)
+![Screenshot of Roles - Edit](./art/roles_edit.png)
+![Screenshot of Account Expired](./art/account_expired.png)
+![Screenshot of Two-Factor Authentication](./art/two_factor.png)
 
 ## Changelog
 
@@ -63,15 +209,6 @@ Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed re
 ## Contributing
 
 Please see [CONTRIBUTING](.github/CONTRIBUTING.md) for details.
-
-## Security Vulnerabilities
-
-Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
-
-## Credits
-
-- [Donald](https://github.com/dearvn)
-- [All Contributors](../../contributors)
 
 ## License
 
