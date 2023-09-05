@@ -1,13 +1,15 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Dearvn\FilamentAccessControl\Http\Livewire;
 
+use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
 use Dearvn\FilamentAccessControl\Enumerators\Feature;
 use Dearvn\FilamentAccessControl\Exceptions\InvalidUserModelException;
 use Dearvn\FilamentAccessControl\Exceptions\UserNotFoundException;
 use Dearvn\FilamentAccessControl\Notifications\TwoFactorCode;
 use Dearvn\FilamentAccessControl\Services\AuthService;
-use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Pages\Auth\Login as FilamentLogin;

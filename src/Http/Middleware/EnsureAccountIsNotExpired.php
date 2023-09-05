@@ -1,9 +1,11 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Dearvn\FilamentAccessControl\Http\Middleware;
 
-use Dearvn\FilamentAccessControl\Enumerators\Feature;
 use Closure;
+use Dearvn\FilamentAccessControl\Enumerators\Feature;
 use Filament\Facades\Filament;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;

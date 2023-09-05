@@ -14,7 +14,7 @@ Route::name('filament.')->group(function () {
                 ->middleware($panel->getMiddleware())
                 ->name($panel->getId() . '.')
                 ->prefix($panel->getPath())
-                ->group(function () use ($panel) {
+                ->group(function () {
                     Route::get('/auth/expired', AccountExpired::class)->name('account.expired');
                     Route::get('/auth/two-factor', TwoFactorChallenge::class)->name('account.two-factor');
                 });

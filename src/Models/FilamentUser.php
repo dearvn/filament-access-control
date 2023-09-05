@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Dearvn\FilamentAccessControl\Models;
 
@@ -108,7 +110,7 @@ class FilamentUser extends Authenticatable implements AccessControlUser, Filamen
         $name = $this->first_name ?? '';
 
         if ($this->last_name) {
-            $name .= ' '.$this->last_name;
+            $name .= ' ' . $this->last_name;
         }
 
         return $name;

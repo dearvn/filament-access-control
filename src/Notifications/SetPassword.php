@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Dearvn\FilamentAccessControl\Notifications;
 
@@ -14,7 +16,8 @@ class SetPassword extends Notification implements ShouldQueue
     public function __construct(
         protected string $url,
         protected string $requestUrl,
-    ) {}
+    ) {
+    }
 
     /**
      * Get the notification's delivery channels.

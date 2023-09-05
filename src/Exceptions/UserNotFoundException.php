@@ -1,7 +1,11 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Dearvn\FilamentAccessControl\Exceptions;
 
 use Exception;
 
-class UserNotFoundException extends Exception {}
+class UserNotFoundException extends Exception
+{
+}

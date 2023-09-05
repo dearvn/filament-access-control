@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Dearvn\FilamentAccessControl;
 
@@ -43,5 +45,7 @@ class FilamentAccessControlPlugin implements Plugin
             ->resources([FilamentUserResource::class, PermissionResource::class, RoleResource::class]);
     }
 
-    public function boot(Panel $panel): void {}
+    public function boot(Panel $panel): void
+    {
+    }
 }
