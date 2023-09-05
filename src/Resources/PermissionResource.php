@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Dearvn\FilamentAccessControl\Resources;
 
@@ -19,6 +21,7 @@ use Spatie\Permission\Models\Permission;
 class PermissionResource extends Resource
 {
     protected static ?string $model = Permission::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-lock-closed';
 
     public static function form(Form $form): Form

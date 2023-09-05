@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Dearvn\FilamentAccessControl\Resources;
 
@@ -20,6 +22,7 @@ use Spatie\Permission\Models\Role;
 class RoleResource extends Resource
 {
     protected static ?string $model = Role::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
 
     public static function form(Form $form): Form

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Dearvn\FilamentAccessControl\Http\Livewire;
 
@@ -20,7 +22,9 @@ use Illuminate\Contracts\Support\Htmlable;
 class TwoFactorChallenge extends SimplePage
 {
     use InteractsWithFormActions;
+
     protected static string $view = 'filament-access-control::two-factor';
+
     public ?string $code = '';
 
     public function mount(AuthService $auth)
@@ -59,7 +63,7 @@ class TwoFactorChallenge extends SimplePage
         return redirect()->intended(Filament::getUrl());
     }
 
-    public function getTitle(): string|Htmlable
+    public function getTitle(): string | Htmlable
     {
         return __('filament-access-control::default.pages.two_factor');
     }
